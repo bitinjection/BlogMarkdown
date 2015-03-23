@@ -9,7 +9,9 @@ The most common methods of dealing with multiple dispatch using these features w
 
 This entry will utilize two languages with which most programmers will have at least a passing familiarity: C and Java.
 
-As a final note, it is important to understand that each of these techniques are fundamentally different.  While in many cases they are interchangable, there are instances where they are not.  For example, table based solutions allow the branching logic to be modified at runtime, while switch and object based solutions do not **inherently** support this.
+It is important to understand that each of these techniques are fundamentally different.  While in many cases they are interchangable, there are instances where they are not.  For example, table based solutions allow the branching logic to be modified at runtime, while switch and object based solutions do not **inherently** support this.
+
+I have included source code to demonstrate each of these approaches.  Code is provided in C or Java, depending on the features needed for each technique.  The article is written without referencing the code directly, however, to allow both the code and article to exist independently.
 
 # What is Multiple Dispatch?
 
@@ -158,8 +160,7 @@ Bad
 
 I will spend the second half of this article examining this object oriented approach, as I find it to be heavily criticized in ways which I think are unfair.  If the above bullets are not clear, feel free to read on.
 
-
-### Header 3
+# 
 
 > This is a blockquote.
 >
