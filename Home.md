@@ -159,3 +159,69 @@ Bad
 * Costs associated with adding/removing types vary based on which set of types you are modifying
 
 I will spend the second half of this article examining this object oriented approach, as I find it to be heavily criticized in ways which I think are unfair.  If the above bullets are not clear, feel free to read on.
+
+# Common Object Oriented-based Complaints
+
+Hopefully it is now clear that there are no clear winners when it comes to emulating multiple dispatch.  Many would have you believe, however, that the object oriented solution is a clear loser.  While it is by no means perfect, I feel many complaints are exaggerated or meaningless.
+
+Though it will be discussed why later, many of the complains about the Visitor pattern will be addressed here as well.
+
+## It Breaks Encapsulation
+
+This argument is absolutely true.
+
+Object oriented programmer is centered around the idea that a set of data and the functions which operate on it should be packaged together.  The public interface of the object protects the data from change which might put the object into an invalid state.
+
+When we use multiple dispatch, though, we call a function which is supposed to interact with more than one type.  In other words, the function itself does not belong to any one object--rather it belongs to **both objects**.  Since the language does not inherently support multiple dispatch, there is usually no facility to create a function which is somehow owned by multiple objects.
+
+I really have no counter argument here, but it is important to note that none of the other methods are any better in this respect.  While the object oriented approach leverages the mechanics of objects, this does not mean that the author is attempting to shoe-horn the dispatch function into the object oriented paradigm.
+
+## You Don't Need It
+
+The idea here is that if you're attempting to implement multiple dispatch, there is going to be some other way which is simpler/better that you just aren't using.  This is a particularly common complain when discussing the Visitor pattern (discussed later).
+
+The problem with this complaint is that it is just wrong.  Situations which require multiple dispatch **really do require multiple dispatch**.
+
+Most of these complaints stem from improper the abuse of the Visitor pattern.  Be very wary when reading about these--just because a person has improperly picked a pattern, and then that person later on finds a better way of solving their problem, does not mean that the initial solution is A Bad Thing that should never be used.
+
+## The Dispatch Functions Grow Combinatorially
+
+This one is another complaint that's absolutely correct.  What drives me nuts is that it is a complaint!
+
+Consider our rock-paper-scissors game.  Without going into the math behind it (though it is very simple), you can see from our matrix that there are three possible ways to attack, for a total of nine possible game-handling function calls.  If we were to add another way to attack, we would have **sixteen** functions to write.
+
+In more complex games, such as any that you might find on the shelf in a store, there may be 20 or more potential entities to consider.  For 20 entities, that's up to **four hundred** collision handling functions.
+
+Needless to say, I can see why people freak out about this exponential growth in the number of necessary functions.  Unfortunately, **that's life, deal with it**.  If you have a game with 20 entities flying around, you just have to deal with them colliding.  There's no real way around it.
+
+Table-based methods have the advantage that not all cells need to be populated, but this just takes us back to the initial trade-off--an object-based design would require 400explicit function definitions, while a table based method would only require the ones that will actually ever be called (but you better hope you don't accidentally try to collide two objects that don't have a handler).
+
+I am not claiming that either approach is superior to the other, but the number of situations you need to mentally handle will grow expontentially whether you like it or not.
+
+## Open/Closed Concerns
+
+This one is actually tricky, legitimate, and will force me to finally bridge the gap between the general case of multiple dispatch and the Visitor pattern.
+
+The rock-paper-scissors example is a special case.  In this instance, we are dispatching to two different types, each from the same group of types.  In other words, a rock, paper, or scissors will always be up against a rock, paper, or scissors.  Adding or removing a possible attack is going to cause a lot of code to shift around.  Having to chance code in classes that deal with rock/paper/scissor attacks everytime a new attack is added or removed actually makes sense, and there probably are not many people that would complain about having to do this.
+
+The types dispatched to do not always have to be from the same group, though.  A common example is that you have a group of heterogeneous types (with a common interface), and you want some way to render these.  In this case, we have two seperate groups of types which we want to dispatch to.  
+
+The usual example for this is some sort of drawing program.  For example
+
+Shapes
+* Circle
+* Square
+* Line
+
+Renderers
+* Win32
+* GTK
+* ASCII
+
+A `Renderer` would have methods which render each type of `Shape`, and each `Shape` would simply provide the secondary dispatch function (`renderer.visit(this)`).
+
+The complaint is this: adding/removing a `Renderer` is insanely easy, but adding/removing a `Shape` is insanely difficult.  Adding/removing a `Renderer` is as simple as adding or removing the class from the project.  Adding/removing a `Shape` requires that **every Renderer object be modified**.
+
+My guess is that this asymmetry is where a lot of the convoluted definitions and flawed understandings originate.  It is my opinion that if multiple dispatch is being used correctly, then the need to modify so many classes is ultimately justified.  In the classic Shape/Renderer example above, you would **want** to modify all of your renderers when a shape is added/removed.
+
+
