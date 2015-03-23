@@ -3,27 +3,27 @@ Author: Douglas Thompson
 Date: 03-18-2015
 Slug: multiple-dispatch
 
-Popular modern day languages have progressed from predominatly procedural/imperative to single dispatch object oriented.  Most mainstream languages also incorporate functional and generic programming to a limited extent as well. We will worry only about the most common subset of features for this article.
+Popular modern day languages have progressed from predominantly procedural/imperative to single dispatch object oriented.  Most mainstream languages also incorporate functional and generic programming to a limited extent as well. We will worry only about the most common subset of features for this article.
 
-The most common methods of dealing with multiple dispatch using these features will be shown.  Keep in mind that these have been discovered through my own research and experience, so read through this with a critical mind, and be sure to diversify your sources on this topic.  Also, please note that the criticism sections following each approach will be loaded with the author's opinion, not actual facts.
+The most common methods of dealing with multiple dispatch using these features will be shown.  These have been discovered through my own research and experience. Read through this with a critical mind, and be sure to diversify your sources on this topic.  The criticism sections following each approach will be the author's opinion, not actual facts.
 
 This entry will utilize two languages with which most programmers will have at least a passing familiarity: C and Java.
 
-It is important to understand that each of these techniques are fundamentally different.  While in many cases they are interchangable, there are instances where they are not.  For example, table based solutions allow the branching logic to be modified at runtime, while switch and object based solutions do not **inherently** support this.
+Each of these techniques are fundamentally different.  While in many cases they are interchangable, there are instances where they are not.  For example, table based solutions allow the branching logic to be modified at runtime, while switch and object based solutions do not **inherently** support this.
 
-I have included source code to demonstrate each of these approaches.  Code is provided in C or Java, depending on the features needed for each technique.  The article is written without referencing the code directly, however, to allow both the code and article to exist independently.
+I have included source code to demonstrate each of these approaches.  Code is provided in C or Java, depending on the features needed for each technique.  The article is written without referencing the code directly to allow both the code and article to exist independently.
 
 # What is Multiple Dispatch?
 
-Code is often written against abstractions.  These abstractions are helpful in the development process, but they all must eventually be resolved to a concrete type in order to do actual work.
+Code is often written against abstractions.  Abstractions are helpful in the development process, but they all must eventually be resolved to a concrete type in order to do actual work.
 
 ## A Single Dispatch Example
 
-As a quick example from an object oriented language, an `Animal` abstraction may provide a `speak` method.  A programmer may write
+As an example from an object oriented language, an `Animal` abstraction may provide a `speak` method.  A programmer may write
 ```java
 animal.speak();
 ```
-This line of code has no real meaning, though.  If an Animal is a purely abstract object, then its `speak` method will have no actual code.  At runtime, the program will dynamically dispatch to object's underlying type and call that object's `speak` method.  In other words, if the abstract `animal` object points to an instance of `Dog` class, then the above call may print `woof` to the screen.  The above call might effectively be translated to
+If an Animal is a purely abstract object, then its `speak` method will have no actual code.  At runtime, the program will dynamically dispatch to object's underlying type and call that object's `speak` method.  If the abstract `animal` object points to an instance of `Dog` class, then the above call may print `woof` to the screen.  The above call might effectively be translated to
 ```java
 dog.speak();  // prints "woof"
 ```
@@ -35,10 +35,10 @@ A programmer writing a game of rock-paper-scissors might use an abstraction of `
 ```java
 (attacker1 and attacker2).determineWinner();
 ```
-As an example, attacker1 might be resolved to `Rock` and attacker2 might be resolved to `Scissors`.  In this case, the code relating to rock beating scissors would be called.
+`attacker1` might be resolved to `Rock` and `attacker2` might be resolved to `Scissors`.  In this case, the code relating to rock beating scissors would be called.
 
 # Multiple Dispatch in C
-There are two main ways to go about this in C.  Both of these involve defining types which explicitly describe themselves.  In other words, an enum may be defined as
+There are two main ways to go about this in C.  Both of these involve defining types which explicitly describe themselves.  An enum may be defined as
 ```c
 enum { ROCK, PAPER, SCISSORS} attacker;
 ```
@@ -64,7 +64,7 @@ switch attacker1.TYPE:
       etc...
   etc...
 ```
-This switch statement ends up being huge, even with only three types.
+This switch statement ends up being huge with only three types, and the complexity grows exponentially as types are added.
 
 Beyond factoring each switch and/or case statement into its own function, the switch statement itself may be replaced with a jump table.
 
@@ -77,12 +77,12 @@ Bad
 
 * Adding/removing types requires a lot of work which won't be verified by a compiler
 * Have to add a type field to all types and keep up with these
-* These switch statements tend to poliferate
+* Switch statements tend to poliferate
 
 The first bullet under the negative criticisms is particularly important.  Adding or removing types involves modifying a lot of code spread out all over your program, and the compiler will not let you know if you have left anything out in many cases.
 
 ## Big Jump Table
-The logic of a switch statement or chain of if/else statements based on explicitly defined types may be replaced by a jump table.  Before diving into the code, imagine a matrix of possible outcomes for the game itself
+The logic of a switch statement or chain of if/else statements based on explicitly defined types may be replaced by a jump table.  Imagine a matrix of possible outcomes for the game itself
 
 - | Rock | Paper | Scissors |
 - | - | - |
@@ -111,11 +111,11 @@ Bad
 Again, the first bullet above is worth reading over again.
 
 # Introspection
-While finding a language or environment in which introspection is unavailable is not unheard of, reflection is commonly used to help alleviate some of the issues with the C-based approaches to this problem.
+Introspection may be used to help alleviate some of the issues with the C-based approaches to this problem when applicable.
 
 Instead of manually tracking each type, the underlying type of each abstraction is determined via a language's introspection features, and then the relevant code is dispatched to based on the findings.
 
-As a side note, this approach is often times discovered independently and immediatelly touted as a panacea for the ugly switch/table based methods previously described, and the also ugly double indirection used in object oriented languages.  It is my opinion that it is not.  While it does simplify some aspects of the table-based approach, it still carries many of the drawbacks associated with that method, and it introduces many of its own drawbacks in the process.  These will be detailed in the general compare/contrast of each method toward the end.
+> As a side note, this approach is often times discovered independently and immediatelly touted as a panacea for the ugly switch/table based methods previously described, and the also ugly object-based double indirection used in object oriented languages (described in a moment).  It is my opinion that it is not.  While it does simplify some aspects of the table-based approach, it still carries many of the drawbacks associated with that method, and it introduces many of its own drawbacks in the process.  These will be detailed in the general compare/contrast of each method toward the end.
 
 ## Criticisms
 Good
@@ -128,7 +128,7 @@ Bad
 * While explicit tracking of types is removed, the developer must still be mentally aware of what these types are when updating tables.
 
 # Object Oriented Approach
-In object oriented languages, polymorphism is the go-to mechanism for replacing branches based on type.  To implement double dispatch, then, one can first write something along the lines of
+In object oriented languages, polymorphism is the go-to mechanism for replacing branches based on type.  To implement double dispatch, one can first write something along the lines of
 ```java
 attacker1.handle(attacker2);
 ```
@@ -144,7 +144,7 @@ We know that we're a `rock`, so `this` is really `rock`.  Again, if `attacker2` 
 ```java
 paper.handleRock(rock)
 ```
-And in our Paper class, the handleRock method can contain the code which handles the rock versus paper interaction.
+And in our Paper class, the handleRock method can contain the code which handles the rock versus paper interaction.  Function overloading is often used during this second dispatch, but it is not necessary for the language to support overloading for this technique to work.
 
 ## Criticisms
 Good
@@ -159,11 +159,3 @@ Bad
 * Costs associated with adding/removing types vary based on which set of types you are modifying
 
 I will spend the second half of this article examining this object oriented approach, as I find it to be heavily criticized in ways which I think are unfair.  If the above bullets are not clear, feel free to read on.
-
-# 
-
-> This is a blockquote.
->
-> This is the second paragraph in the blockquote.
->
-> ## This is an H2 in a blockquote
