@@ -1,4 +1,4 @@
-Title: Multiple Dispatch for the Masses
+Title: Multiple Dispatch
 Author: Douglas Thompson
 Date: 04-21-2015
 Slug: multiple-dispatch
@@ -202,11 +202,13 @@ The types dispatched to do not always have to be from the same group, though.  A
 For example:
 
 Shapes
+
 * Circle
 * Square
 * Line
 
 Renderers
+
 * Win32
 * GTK
 * ASCII
