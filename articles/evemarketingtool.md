@@ -1,230 +1,92 @@
-Title: Some other thing
+Title: Writing a Trade Finder for Eve
 Author: Douglas Thompson
-Date: 04-21-2015
-Slug: another-thing
-Category: Patterns
+Date: 04-22-2015
+Slug: eve-marketing-tool
+Category: Programming
 
-Popular programming languages used have progressed from perdominately procedural/imperative to single dispatch object oriented.  Most mainstream languages also incorporate functional and generic programming to a limited extent as well. We will worry only about the most common subset of features found in C++, C#, and Java for this article.
+Finding securities to scalp in Eve essentially boils down to tedious, repetative work.  Luckily, the game provides a good toolset for developers, so I set out to write a program to save some time and effort.
 
-The most common methods of implementing multiple dispatch using these languages will be shown.  Keep in mind that these have been discovered through my own research and experience, so read through this with a critical eye.
+# Spreadsheets in Space
 
-This entry will utilize two languages with which most programmers will have at least a passing familiarity: C and Java.  C is used to demonstrate how the problem may be approached in a language without objects, and Java is used to demonstrate how the problem may be approached using object oriented practices.  Each of these techniques are fundamentally different.  While in many cases they are interchangable, there are instances where they are not.
+In another article, I discussed an approach I sometimes take when trading in Eve Online.   A formula for any scalper would regularly use is the one which computs the **bid-ask percentage**:
 
-I have included source code to demonstrate each of these approaches.  Code is provided in C or Java, depending on the features needed for each technique.  The article is written without referencing the code directly to allow both the code and article to exist independently.
+<a href="http://www.codecogs.com/eqnedit.php?latex=100\frac{a-b}{b}" target="_blank"><img src="http://latex.codecogs.com/gif.latex?100\frac{a-b}{b}" title="100\frac{a-b}{b}" /></a>
 
-# What is Multiple Dispatch?
+I used this formula so many times that I typically mentally estimate the bid-ask spread on a security in under a second or two.
 
-Abstractions are helpful in the development process, but they all must eventually be resolved to a concrete type in order to do actual work.
+There are other calculatable numbers to consider when determining whether or not to invest in a security, and it can be slow and annoying to calculate each of them for every possible candidate--there are literally thousands.
 
-## A Single Dispatch Example
+A good tool to help perform many of the desired calculations quickly is the spreadsheet.  A spreadsheet can be constructed relatively quickly, and the amount of time and effort it saves is substantial.  Spreadsheets are so useful in so many Eve activities, thatt the game is sometimes called "Excel Online" or "Spreadsheets in Space".  Thus, I knew I was becoming a real Eve pro once I began to toss together spreadsheets.
 
-As an example from an object oriented language, an `Animal` abstraction may provide a `speak` method.  A programmer may write
+Sadly, the convenience of spreadsheets only goes so far.  Searching through the thousands of securities, copying and pasting in each bid/ask, and so on, is still massively annoying, slow, and repetitive.
 
-```java
-animal.speak();
-```
+# Eve API
 
-If an Animal is a purely abstract object, then its `speak` method will have no actual code.  At runtime, the program will dynamically dispatch to object's underlying type and call that object's `speak` method.  If the abstract `animal` object points to an instance of `Dog` class, then the above call may print `woof` to the screen.  The above call might effectively be translated to
+One of the great things about Eve Online is its support for developers.  In fact, many would argue that it is nearly impossible to play Eve without third part tools.  The programs EFT/Pyfa and EveMon are a virtual requirement to play, while tools such as Dotlan, Tripwire, Eve Central, and so on are familiar to nearly any player.
 
-```java
-dog.speak();  // prints "woof"
-```
+Getting market data from Eve is as simple as fetching the it via a URL.  The data is provided in JSON, and from there it's as simple as tossing the numbers into whatever formulas you desire and displaying the data on the screen.
 
-# A Multiple Dispatch Example
-It may be necessary to dispatch based on multiple types in many situations.
+Really, making a tool to do this is so simple that it is not even really worth writing about.
 
-A programmer writing a game of rock-paper-scissors might use an abstraction of an `Attack` to represent a potential play.  When the actual game is played, the type of both attacks will need to be known.  What we **want** to write is something along the lines of:
-```java
-(attack1 and attack2).determineWinner();
-```
-`attack1` might be resolved to `Rock` and `attack2` might be resolved to `Scissors`.  In this case, the code relating to rock beating scissors would be called.
+# Thorttling
 
-# Multiple Dispatch in C
-There are two main ways to go about this in C.  Both of these involve defining types which explicitly describe themselves.  An enum may be defined as
-```c
-enum { ROCK, PAPER, SCISSORS} attack;
-```
-The types for each attack could be defined by
-```c
-struct { attack TYPE = ROCK; }
-struct { attack TYPE = PAPER; }
-struct { attack TYPE = SCISSORS; }
-```
-## Big Switch Statement
+What made me want to write this article was how I decided to go about polling the API for data.  I am confident that there are better ways to go about doing this, but I though I would share what I came up with.  Any opinions and criticisms would be welcome.  Dragons ahead!
 
-One solution is to have a Big Switch Statement to handle every possible combination of attacks.  In psuedocode:
+Like many APIs these days, CCP has limited the number of queries it will allow clients to make.  In a perfect world, I'd simply ask the server for all orders of all securities all over New Eden every few seconds or so, and I'd work with that data.  I cannot do this, though, due to the restrictions on the use of the API.  So how do I go about eventually getting all the data, and how do I continue to update prices as the application runs in a way that would best benefit me as a trader?
 
-```c
-switch attack1.TYPE:
-  case ROCK:
-    switch attack2.TYPE:
-      case ROCK: tie
-      case PAPER: lose
-      case SCISSORS: win
-  case PAPER:
-    switch attack2.TYPE:
-      case ROCK: win
-      etc...
-  etc...
-```
-This switch statement ends up being huge with only three types, and the complexity grows exponentially as types are added.
+# Requirements
 
-The switch statement itself may be replaced with a jump table if preferred.
+There are two basic things I was looking for.
 
-### Criticisms 
-Good
+* Need to consider the entire market
+* Need to spend more time fetching prices for securities that I actually care about
 
-* Not **too** difficult to manually trace through
+These two ideas actually compete to an extent.  I want to know what the spread is of **everything**, but at the same time, I don't want to be constantly fetching prices for things I don't care about.  I still want to fetch prices for those things **sometimes**, since they may eventually **become** something I care about, but, in general, I don't want to spend my precious price-fetching-quota on things that are usually not interesting.
 
-Bad
+## Scheduling Algorithms
 
-* Adding/removing types requires a lot of work which will not be verified by a compiler
-* Have to add a type field to all types and keep track of all types
-* Switch statements tend to poliferate and manifest as duplicated code throughout the project
+My first thought was to turn to the scheduling algorithms that operating systems use to determine how to divy up CPU time.  I figured this would be a slam dunk, but since we are talking about programming, it was, of course, not that simple.
 
-## Big Jump Table
+Scheduling algorithms **seem** like a good fit because they cycle through a list of jobs, and the jobs themselves are often given different priorities, or importance.
 
-Imagine a matrix of possible outcomes for the game itself:
+Scheduling algorithms end up being an awkward fit because they seek to address a slightly different poblem.  In general, scheduling algorithms are expecting each "job" to take longer than a quantum, so they focus on sifting through a compartively (?) small number of long running jobs.  
 
-- | Rock | Paper | Scissors |
-- | - | - |
-**Rock** | Tie | Lose | Win |
-**Paper** | Win | Tie | Lose |
-**Scissors** | Lose | Win | Tie |
+In our case, we actually have a huge number of short jobs that we can only run every once in a while, so many of the algorithms don't make much sense for us.  Our "jobs" will never actually finish, and slowly iterating through the entire list would take a very long time.  I'm not saying that the typical schedulig algorthims don't fit at all, but they weren't really what I was looking for.  There was one, though, which caught my eye.
 
-We can translate this into code by creating functions for every possible combination of rock-paper-scissors. We then populate a table based on the intersection of the types.  Dispatching to the correct function can then be done by looking up the function pointer in the table
-```c
-BattleFunction generate_outcome = gameMatrix[attack1.TYPE, attack2.TYPE];
-generate_outcome();
-```
-Maintaining the `TYPE` field in all of our objects is still a bit of a pain.  If we were to add or remove any types, we would have to edit our enum and update our matrix.
+## Playing the Lottery
 
-### Criticisms
-Good
+The lottery-based scheduling algorithm is so simple and dumb.  You simply assign a number of "tickets" to each job, then pick one of them randomly.  That job gets to run for a bit, and then the process repeats.  The reason this approach appeals to me is because it mimics what I actually do.
 
-* Tables can be constructed outside of static code.  Modification of the table does not usually require modification of the code which uses the table (in contrast to the switch statement approach).
+When I find a security that I have traded successfully before, I'll trade it until it becomes unprofitable, but I'll randomly check back to see if the bid-ask spead has re-emerged.  If this happens often with a particular security, I'm more likely to check on it regularly.  If a security seems to always be a poor choice, such as with PLEX, I rarely, if ever check on it--but I'll still come back now and again and check on it just for giggles.  For other securities, I sometimes run through the listings on the market and randomly check out various things to see how their prices are doing.
 
-Bad
+# Scoring
 
-* Much more difficult to debug/trace.
-* Still requires types to label themselves.
+If I use the above lottery system and give each security a single ticket, then the Random Number Gods will likely eventually hit on every security.  If that's all I was interested in doing, though, I could just run through the list in alphabetical order and be done.
 
-# Introspection
-Introspection may be used to help alleviate some of the issues with the C-based approaches to this problem.
+I want to adjust the number of tickets that each secuirty gets based on how interested I am in recalculating the spread and other metrics that I use when trading.  I looked at my trading habits and realized a few things:
 
-Instead of manually tracking each type, the underlying type of each abstraction is determined via a language's introspection features, and then the relevant code is dispatched to based on the findings.
+* Some securities I mostly ignore as they are usually bad
+* Some securities I trade a lot, but I almost do this blindly because they're always good
+* Some securities are good sometimes, and not good other times.
 
-> As a side note, this approach is often times discovered independently and immediatelly touted as a panacea for the ugly switch/table based methods previously described, and the also ugly object-based double indirection used in object oriented languages (described in a moment).  It is my opinion that it is not.  While it does simplify some aspects of the table-based approach, it still carries many of the drawbacks associated with that method, and it introduces many of its own drawbacks in the process.
+I am not too concerned with the securities in the first two bullets.  These items are usually always good or always bad, and, as a result, I'm not usually having to plug their numbers into any spreadsheets.
 
-## Criticisms
-Good
+The last bullet is important, though.  These items often jump the fence between being good to trade and bad to trade.  One of the main reasons a security does this is because people will notice a big spread on a semi-popular security and begin to invest in it.  Because this is a semi-popular security, "regular" players will often buy and sell them and the scalpers involved can make a fair bit of dosh from them.  The popularity of the item, though, causes more competition from other traders to quickly emerge, and the security's spread collapses quickly.  Traders lose interest, the spread begins to grow again, and the process repeats.  **These are the securities I want to check in on regularly**.  I still want to fetch prices for the less interesting securities "just in case", but I want to fetch the prices for these interesting ones more often.
 
-* Removes the need for types to keep track of themselves.
+## How Do?
 
-Bad
+If a security consistently displays "good" numbers, or consistently displays "bad" numbers, I want it to be checked less and less.  If a bad security begins to show good signs, or if a security constantly bounces between "good" and "bad", I want those to be checked more frequently.  I want to make sure, though, that a security always has at least **some** chance of being checked.
 
-* Makes debugging/tracing even more painful.
-* While explicit tracking of types is removed, the developer must still be mentally aware of what these types are when updating tables.
+Ideally, I would quickly push the securities which show consistent behavior off to the sides, but I don't want to slow down this "pushing off to the sides" as they move away from the center.  Again, I never want to push them off of the table, just a little bit further away each time.
 
-# Object Oriented Approach
-In object oriented languages, polymorphism is the go-to mechanism for replacing branches based on type.  To implement double dispatch, one can first write something along the lines of
-```java
-attack1.handle(attack2);
-```
-This dispatches to the appropriate `handle` method based on attack1's type.  If `attack1` is a `rock`, for example, you could mentally translate this to
-```java
-rock.handle(attack2);
-```
-Once we're in the Rock's `handle` method, we know we are a rock.  To determine what `attack2` is, we can write
-```java
-attack2.handleRock(this);
-```
-We know that we're a `rock`, so `this` is really `rock`.  If `attack2`'s underlying type is `paper`, the call may be mentally translated to
-```java
-paper.handleRock(rock)
-```
-And in our Paper class, the handleRock method can contain the code which handles the rock versus paper interaction.  
+When thinking about this, I came up with two similar solutions.  I'll start with the more obvious, sensible one first, then discuss the first one that popped into my head second.
 
-> A common misunderstanding is that this technique only works in a language which supports function overloading.  As shown above, it does not.  Function overloading is often used during this second dispatch, but it is not necessary for the language to support overloading for this technique to work.
+## The Normal Approach
 
-## Criticisms
-Good
+I have no idea why this did not occur to me first, but the easy solution is also the Big One. The Grand Daddy Curve of curves.  The Bell Curve.
 
-* Returns many of the potential errors to compile time
-* Avoids the poliferation inherent in switch-based solutions
+The standard normal bell curve works well for my purposes.  Each security can be given a single ticket, as their prices is checked, the ticket is adjusted to be some value along the standard normal bell curve.  For instance, a "good" security would move to the right, while a "bad" security would move to the left.  As the security receieves repeated "good" or repeated "bad" ratings, it is selected for evaluation less frequently.  Securities which regularly switch back and forth between "good" and "bad" remain closer to the middle of the curve and are selected for re-evaulation more frequently.
 
-Bad
+"Good" securities, of course, will still be displayed in the program for trading, but they are not frequently reevaluated until they have shown at least a little bit of consistency.  This eliminates the problem of wasting API calls on securities which barely crossed the line into being a "good" security for a moment, only before regressing to a "bad" one.
 
-* May be difficult to understand if unfamiliar with the design pattern
-* It is an object oriented solution which violates many object oriented ideas
-
-> I will spend the second half of this article examining this object oriented approach, as I find it to be heavily criticized in ways which I think are unfair.  If the above bullets are not clear, feel free to read on.
-
-# Common Object Oriented-based Complaints
-
-Hopefully it is obvious that there are no clear winners when it comes to emulating multiple dispatch.  Many would have you believe, however, that the object oriented solution is a clear loser.  While it is by no means perfect, I feel many complaints are exaggerated or meaningless.
-
-Though it will be discussed why later, many of the complains about the Visitor pattern will be addressed here as well.
-
-## It Breaks Encapsulation
-
-Object oriented programming is centered around the idea that a set of data and the functions which operate on it should be packaged together.  The public interface of the object protects the data from change which might put the object into an invalid state.
-
-When we use multiple dispatch, though, we call a function which is supposed to interact with more than one type.  In other words, the function itself does not belong to any one object--rather it belongs to **both objects**.  Since the language does not inherently support multiple dispatch, there is usually no facility to create a function which is somehow owned by multiple objects.
-
-I really have no counter argument here, but it is important to note that none of the other methods are any better in this respect.  If multiple dispatch is truly necessary, you will not find an encapsulatable approach.
-
-## You Don't Need It
-
-The claim here is that if you're attempting to implement multiple dispatch, there is going to be some other way which is simpler/better that you just aren't using.  This is a particularly common complain when discussing the Visitor pattern (discussed later).
-
-The problem with this complaint is that **it is just wrong**.  Situations which require multiple dispatch **really do require multiple dispatch**.
-
-Most of these complaints stem from improper use of the Visitor pattern.  Be very wary when reading about these--just because a person has improperly picked a pattern, and then that person later on finds a better way of solving their problem, does not mean that the initial solution is A Bad Thing that should never be used.
-
-## The Dispatch Functions Grow Combinatorially
-
-Consider our rock-paper-scissors game.  Without going into the math behind it (though it is basic high school combinatorics), you can see from our matrix that there are three possible ways to attack, for a total of nine possible game-handling function calls.  If we were to add another way to attack, we would have **sixteen** functions to write.  
-In more complex games, such as any that you might find on the shelf in a store, there may be 20 or more potential entities to consider.  For 20 entities, that's up to **four hundred** collision handling functions.
-
-Unfortunately, **that's life, deal with it**.  If you have a game with 20 entities flying around, you have to deal with them colliding.  There's no way around it.
-
-Table-based methods have the advantage that not all cells need to be populated, but this just takes us back to the initial trade-off--an object-based design would require 400explicit function definitions, while a table based method would only require the ones that will actually ever be called (but you better hope you don't accidentally try to collide two objects that don't have a handler).
-
-I am not claiming that either approach is superior to the other, but the number of situations you need to mentally handle will grow expontentially whether you like it or not.
-
-## Open/Closed Concerns
-
-The rock-paper-scissors example is a special case.  In this instance, we are dispatching to two different types, each from the same group of types.  In other words, a rock, paper, or scissors will always be up against a rock, paper, or scissors.  Adding or removing a possible attack is going to cause a lot of code to shift around.  Having to chance code in classes that deal with rock/paper/scissor attacks everytime a new attack is added or removed actually makes sense, and there probably are not many people that would complain about having to do this.
-
-The types dispatched to do not always have to be from the same group, though.  A common example is that you have a group of heterogeneous `Shape` types, and you want to render these using a variety of methods.  In this case, we have two seperate groups of types which we want to dispatch to.  
-
-For example:
-
-Shapes
-* Circle
-* Square
-* Line
-
-Renderers
-* Win32
-* GTK
-* ASCII
-
-A `Renderer` would have methods which render each type of `Shape`, and each `Shape` would simply provide the secondary dispatch function (`renderer.visit(this)`).
-
-The complaint is this: adding/removing a `Renderer` is easy, but adding/removing a `Shape` is difficult.  Adding/removing a `Renderer` is as simple as adding or removing the class from the project.  Adding/removing a `Shape` requires that **every Renderer object be modified**.
-
-My guess is that this asymmetry is where a lot of the convoluted definitions and flawed understandings originate.  It is my opinion that if multiple dispatch is being used correctly, then the need to modify so many classes is ultimately justified.  In the classic Shape/Renderer example above, you would **want** to modify all of your renderers when a shape is added/removed.  Even if there were hundreds of `Renderer`s, you would want to make sure that each of them could render all of the necessary types.
-
-# Alternatives
-
-Not many heavily used languages curently have official, explicit support for multiple dispatch, but many have ways to facilitate the process beyond what has been described here:
-
-* C# has the `dynamic` keyword
-* Python has libraries leveraging the language's decorator mechanism
-* C++ libraries enable multiple dispatch via template metaprogramming
-
-# Conclusion
-
-Multiple dispatch, in my opinion, is massively misunderstood, incorrectly used, and possibly underutilized.  This is no surprise, however, as the mechanisms for supporting such a concept in mainstream languages are heavily lacking.  Still, recognizing the situations in which multiple dispatch may be needed, and understanding the possible approaches to implementing it in your environment, can prevent the production of otherwise unweildly, hackneyed code which might attempt to be something that it is not.
+I should also note that the user has the ability to manually request a security be updated.  The above approach is mainly for updating prices over time "in the background".
