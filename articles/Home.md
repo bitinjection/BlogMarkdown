@@ -2,7 +2,7 @@ Title: Multiple Dispatch
 Author: Douglas Thompson
 Date: 04-21-2015
 Slug: multiple-dispatch
-Category: Patterns
+Category: Programming
 
 Popular programming languages used have progressed from perdominately procedural/imperative to single dispatch object oriented.  Most mainstream languages also incorporate functional and generic programming to a limited extent as well. We will worry only about the most common subset of features found in C++, C#, and Java for this article.
 
