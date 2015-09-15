@@ -1,0 +1,287 @@
+Almost considered a cancer in modern day programming is the switch statement (or, failing that, a long list of "if else" statements).  Modern day object oriented languages leverage polymorphism in an attempt to drive this construct into extinction.  In some cases, the single-dispatch mechanisms prevelant in most mainstream languages are not sufficient.  In these cases, developers must make compromises--sometimes reverting to old practices.  Oddly enough, some of these "older practices" are rediscovered by unwary programmers and often touted as breakthroughs, so let us look at a few implementations of multiple dispatch and consider some of their rammifications.
+
+Note that this is NOT a tutorial on multiple dispatch.  It is a step-by-step progression from imperative, procedural, concrete implementation to a java-style, object oriented, abstract approach.
+
+We may decide to write a fighting game.  Here, we will lay out an example aggregate data type for two of the fighters with only a couple of example variables:
+[code]
+typedef struct {
+  float life;
+  unsigned int (*attack)(void); /* returns damage */
+} SnowPrincess;
+
+typedef struct {
+  float life;
+  unsigned int (*attack)(void); /* returns damage */
+} Hellspawn;
+/* Similar code for Sleepy */
+[/code]
+
+Note that to remain accurate, I will only use C-like code until we get to the object oriented section.  Consider all code to be pseudocode, though.
+
+Here we have the fighter's life, or hitpoints, and a function which calculates some base attack value.  We have defined two fighters--a Snow Princess and a Hellspawn.  Now let's say that items randomly spawn around the stage and that any fighter touching an item will create some particular situationally dependent repercussion.  For instance, if it were a bucket of water, we might say that a Hellspawn gets cooled down by the water, and his attack damage is lowered.  Meanwhile, a Snow Princess touching water gives her the ability to create a sword out of ice, and her attacke damage would increase.  A hot coal item might have the opposite effects.
+
+These aren't the only two (or four) cases, though.  The two fighters may also collide, and two items may end up colliding with each other by spawning within range of each other, or due to whatever physics may be pushing them around.  Altogether, if players were allow to pick identical fighers, there would be 10 situations to consider--and that's with only 4 collidable objects in the game.
+
+It turns out there are A LOT of potential cases to consider here.  If the "order" that the objects collide does not matter, as is the case here, the number of collision handling cases to consider will be given by the formula: \frac{(n + r - 1)!}{r!(n-1)!} where n is the number of items, and r is the number of items that are currently colliding (2 in the case of most games--collision is handled two objects at a time).  If the order does not matter and we are only considering two items, the numbers of cases is n^2.  This means that in a game with 20 different collidable objects, we will have to consider 400 cases, and, if order DOES NOT matter, dispatch to up to 210 different collision-resolving blocks of code.
+
+If you have not tried to find an elegant way to do this yourself, I can tell you that it is not an easy problem to solve within the single-dispatch object oriented paradigm.  Indeed, if you have ever heard of multiple dispatch, it is most likely within the context of this very situation--collision detection in some sort of video game.
+
+But video games were around long before object oriented programming became popular for everyday use.  How was it handled before?
+
+THE SWITCH STATEMENT
+
+Let us step back for a moment and consider the original problem of fighters picking up items which modify their attack value.  First, we need to write a function which can accept either type of fighter.
+[code]
+unsigned int modify_attack_water(fighter* fighter); /* bucket of water is picked up */
+[/code]
+
+This function would be called to apply the attack modification when a fighter picked up a bucket of water.  Keep in mind, though, that we need to actually know which fighter picked it up.
+
+A common way to do this in the past was to simply include an identifier for each fighter and define some constants or an enum to make things more digestible.  We can also make our in-game collidables  a little more generic if we can determine their type in this manner:
+
+[code]
+typedef struct {
+  unsigned int ID; /* FIGHTER_PRINCESS or FIGHTER_HELLSPAWN or ITEM_BUCKET etc. */
+  float life;
+  unsigned int (*attack)(void); /* returns damage */
+} entity;
+[/code]
+
+Easy right? And then shove in some nested switch statements which examine these identifers and determine what to do from there:
+[code]
+void collide(entity* first_collidable, entity* second_collidable)
+{
+  switch(first_collidable->ID)
+  {
+    case FIGHTER_PRINCESS:
+      switch(second_collidable->ID) {
+        case FIGHTER_PRINCESS:
+          /* ... */
+          break;
+        case FIGHTER_HELLSPAWN:
+          /* ... */
+          break;
+        case ITEM_BUCKET:
+          /* ... */
+          break;
+        case ITEM_COAL:
+          /* ... */
+          break;
+
+      };
+
+    case FIGHTER_HELLSPAWN:
+      switch(second_collidable->ID) {
+        case FIGHTER_PRINCESS:
+          /* ... */
+          break;
+        case FIGHTER_HELLSPAWN:
+          /* ... */
+          break;
+        case ITEM_BUCKET:
+          /* ... */
+          break;
+        case ITEM_COAL:
+          /* ... */
+          break;
+      };
+
+    case ITEM_BUCKET:
+      switch(second_collidable->ID) {
+        case FIGHTER_PRINCESS:
+          /* ... */
+          break;
+        case FIGHTER_HELLSPAWN:
+          /* ... */
+          break;
+        case ITEM_BUCKET:
+          /* ... */
+          break;
+        case ITEM_COAL:
+          /* ... */
+          break;
+      };
+
+    case ITEM_COAL:
+      switch(second_collidable->ID) {
+        case FIGHTER_PRINCESS:
+          /* ... */
+          break;
+        case FIGHTER_HELLSPAWN:
+          /* ... */
+          break;
+        case ITEM_BUCKET:
+          /* ... */
+          break;
+        case ITEM_COAL:
+          /* ... */
+          break;
+      };
+  };
+}
+[/code]
+
+That's 16 cases for 4 items.
+
+If we look at the latest Mortal Kombat (9) game, as an example, there were 31 characters.  If each of these had an item related to their character in game as well, we would have 62 collidable objects. The above switch statement would grow to have *3,844* cases, with up to *1953* unique collison handling calls.
+
+Luckily, there is a way to extract this switch statement, in a sense, and make it a little bit more flexible,nd a lot more easy to digest.
+
+THE JUMP TABLE
+
+We can do this by factoring out each case statement into a function, and using a collection, such as an array, to dispatch to each function based on our entity's ID.  This array can be constructed, and the switch can be replaced as follows:
+[code]
+/* TODO: Add in code here from jumpmatrix.c */
+[/code]
+
+The example code is not too compelling since it has to be crammed into a textbox in a blog post, but the nice thing about this approach is that it breaks itself up naturally.  There is no enormous switch statement to maintain, but instead there are a bunch of independent functions.  Instead of having a switch statement wiring them together, we have a multidimensional array that is populated with function pointers.  
+
+This array, of course, could be replaced with any sort of collection--a sparse matrix of linked lists, for example, would be good if many of the objects were not likely to collide with each other.  Additionally, the array may be expanded or shrunk at runtime, if necessary, and the array itself is easy to pass around the program.  The array initialization could be driven programatically, and so on.
+
+This approach is not without its own drawbacks, however.  Like many things in programming, if the matrix is not populated correctly, it may produce frustrating bugs.  Determing whether or not the matrix is appropriately populated is also not an easy task.
+
+SINGLE-DISPATCH POLYMORPHISM
+
+Hidden away in the inner workings of many object oriented languages lies the vtable, a table of function pointers used at runtime to determine which virtual function in a class heirarchy should be called.  This interesting topic is one worth study, but not the topic which will be discussed herein.
+
+If, after reading the previous two sentences, you find yourself confused or nodding off, I'll highlight the most important part: *a table of function pointers*.  That's right, the laugages we use on a regular basis automate the creation of these jump tables.  Let us see how we might leverage this to rewrite our fighter fighter in an object oriented language:
+*** code fighter fighter: OOP
+
+In fact, many have proposed writing small, "for fun", programs using as few branching statements as possible as practice.  This transformation from switch on type <-> jump table <-> oo polymorphism is an important concept that is worth taking time to understand.  Each approach has various advantages and disadvantages, but the idea, itself, has been around since the dinosaurs were programming.
+
+DOUBLE DISPATCH
+
+The automatic jump table generation that many object oriented languages use only dispatch on one type.  
+
+To see what this means, let's say we have a Fighter class in our game.  When the fighter throws a punch, we want the game to play a sound based on the character that is throwing the punch.  In C, we would probably have to throw together a switch statement or jump table which branched based on the type of fighter throwing the punch.  In an object oriented language, such as Java, this process is a lot easier to handle:
+[code]
+// Somewhere earlier in the program
+Fighter fighter = new SnowPrincess();  // Where SnowPrincess is derived from Fighter
+
+// then later we pass the object above to this function
+public void throw_punch(Fighter fighter) { fighter.make_punch_sound(); } // makes princess punch noise
+[/code]
+
+The idea here is that we want to call a make_punch_sound() function based on whatever type "fighter" ACTUALLY is.  This is great, and these days even novice programmers will understand that this works.
+
+That's great, but what about our collision detecton?  It ends up being not so simple.  What we WANT to write is something like:
+[code]
+(first_entity and second_entity).collide();
+[/code]
+
+The idea being that we want to take two entities in game and call a function based on the type of BOTH.
+As it happens, most "mainstream" lanuages do not have language-level support for this.
+
+  VISITOR
+
+  The visitor pattern is one unlucky dude.  The mechanisms which make it work, the circumstances under which it was founded, and people's understanding of its various pieces have landed it in a strange place.  No two programmers will have the same opinion, or even understanding of this pattern, how it works, or what its actual purpose is.  However, one vital piece of code buried within the depths of this "pattern" holds the solution to our double dispatch conundrum:
+[code]
+a->visit(v)
+[/code]
+
+If you have never studied the visitor pattern, now might be a good time to go and try to swallow that bitter pill.
+
+This small bit of code actually allows us to do something really interesting--we can actually "figure out" what the type of an object is at runtime without using any sort of language-supplied introspection.
+
+Let's first look at a really dumb example.  Let's say we have a Dog and a Cat which implement Animal.  Each has a "speak" function in which the animal just says what it is:
+[code]
+Animal first = new Dog();
+Animal second = new Cat();
+
+// This function doesn't know anything about "Cat"s or "Dog"s
+public void DoGenericStuff(Animal animal)
+{ animal->speak(); } // Yet RIGHT HERE we have discovered whether the Animal is a cat or a dog
+[/code]
+
+If this example seems a little dumb, that's because it is.  Single dispatch languages handle this situation well.  But when we step it up to multiple dispatch, we have to employ this trick twice in order to determine the code to be called:
+
+[code]
+
+// Freeish function
+public void DoThingBasedOnBoth(Animal first, Animal second)
+{ animal.DoADispatch(first); }
+
+public interface Cat {
+  // Function initially called
+  public void DoADispatch(Animal animal);
+
+  // These will be our secondary dispatches and will be called via the function above
+  public void DoADispatchWithACat(Cat cat);
+  public void DoADispatchWithADog(Dog dog);
+}
+
+// In "Cat" class
+public Cat implements Animal {
+  public void DoADispatch(Animal animal) {
+    // TIME OUT
+    // At this point we KNOW the first thing passed to "DoThingBasedOnBoth" is a Cat!
+    // We know this because we're in the Cat class!!
+    
+    // Now we just do the same thing with the OTHER parameter that was passed in
+ 
+    // We know we're a cat, so we'll call the function that's expecting a Cat on the
+    // OTHER animal
+    animal.DoADispatchWithACat(this); // We pass in ourselves
+  }
+}
+
+public Dog implements Animal {
+  // ...
+
+  // Supposing a Cat and Dog were passed in, this may be called
+  public void DoADispatchWithACat(Cat cat) {
+
+    // TIME OUT AGAIN
+    // See, now we know that we are a dog, and the other thing is a cat
+    // Now we can just call the appropriate function based on that
+
+    // NOTE that it isn't really appropriate to have the code within the Dog class,
+    // since the code really "belongs" to both the Cat and the Dog.  Most
+    // languages cannot reasonably express this, so a free function (or whatever your
+    // language supports) is probably the way to go.
+    
+    makeDogAndCatInteract(this, cat);
+  }
+
+  // ...
+}
+
+// Then somewhere out in space
+public void makeDogAndCatInteract(Dog dog, Cat cat) {
+  // This could get messy
+}
+[/code]
+
+The above code is overly verbose for explanatory purposes--function overloading is often heavily used to clean things up as well.
+
+If this seems like a hack, then that just might be related to the fact that it is actually a terrible hack.  The lack of multiple dispatch in many languages is a big short coming, and, for some, this is the most "classy" way to do it.
+
+The code above acts more as an explanation of the mechanism used to do double dispatch, but the implications are this:  Anytime a new object is added to our would-be game, we'd have to add a new method to our interface and a little bit of boilerplate to go along with it, along with fleshing out the relevant methods to deal with it.  There are a few other ways to go about this as well--we could factor out our dispatch-related stuff into their own classes, and then we would have to also add a new class for each object added.
+
+But WHY?  Well, many people find writing out new functions like this, and relying on the compiler to complain about unimplemented functions, a very comforting safety net.  And, indeed, this approach, inspite of its ugliness and the need to modify code often, does provide much more safety and is much easier to debug than a jump table.  It costs the flexibility of runtime modification that the jump tables bring, but that is often times not a factor.
+
+CONTRASTING VARIOUS METHODS
+
+In summary, most people just don't mess with switch statements.  There may be a place or two where they are the ideal solution, but I'm too scared of becoming a pariah.
+
+Jump tables are nice because they can be modified at runtime, or created with a sparse collection for when only a few times will ever interact, and so on, but can bring debugging headaches.  For example, when coming out with the examples in this article, I struggled the most with the jump table implementation due to silly mistakes that were difficult to diagnose.
+
+The so-called object oriented approach is a gross hack and actually relies on the programmer constantly rewriting code, but provides a little bit of safety and clairity.
+
+JUST FRANKENSTEIN IT
+
+One approach I often see touted as a panacea of this sort of problem is to use RTTI/Reflection/whatever to asertain object types, then use those types to index into a jump table.  You can evaluate the pros and cons of this approach and determine whether or not it is suitable for you, but be sure that you understand that it is just a different way of implementing a jump table with costs adjusted for the use of whatever your introspection tool of choice is.
+
+CRITICISMS
+
+My main motiviation for writing this article is that there are many strage criticisms of various approaches.  In particular, the "object oriented" approach presented here receives far too much flak for the wrong reasons.  People see altering existing code as a red flag, and end up backsliding into jump tables.  It's not that jump tables are bad, just that the ***entire purpose of the multiple-dispatch pattern was to replace jump tables***, and yet the run to mountain tops to yell about how they have conquered this multiple dispatch problem by replacing the pattern with jump tables!
+
+Without going too far off topic, I will say that sometimes it is okay to have "quaratines" of sorts--pockets of code which you will have to make small changes to throughout a program's lifetime, for the sake of catching errors at compiles time versus runtime, or just to limit the damage that the ever-changing code does.
+
+BUT BUT MY LANGUAGE
+
+Yes, I hear you--your favorite language can actually do this stuff one way or another.  C++ has at least a couple of third party frameworks that provide multimethod support, Python has some library support packaged along with it that uses decorators, I think, C# can use the dynamic keyword to work it out, LISP (not really mainstream...) has this sort of thing right out of the box, and so on.
+
+In my opinion, these solutions are probably ideal.  The switch statement is nasty, the jump table is nasty, and the visitor-based abomination is also nasty.  You can choose your poison, or just go along with whatever your language writers have managed to scrape together.  But in the end, the choice is up to you.  Any choice is probably fine, so long as you carefully consider all of the rammifications.
+
+Derek Greer double dispatch code smell
