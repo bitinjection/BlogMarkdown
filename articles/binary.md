@@ -8,7 +8,7 @@ Tags: Algorithms, Mathematics, Optimization, Programming
 
 I want to put this out there now--I intend to follow this up at some point in the future with more significant insights as I still have a lot of questions about this topic.
 
-Be sure to check out the [video](https://www.youtube.com/watch?v=2cXrsrPAbwk "Generatin combinations and permutations") if you have some time to kill!
+Be sure to check out the [video](https://www.youtube.com/watch?v=pq7yCQdyER8 "Generatin combinations and permutations") if you have some time to kill!
 
 # The Setup
 
@@ -33,7 +33,7 @@ a = &pi; r ^ 2
 Continuing with our concrete example, the area of a circle with radius 14 is 196&pi;, while the radius of a circle with radius 7 is 49&pi;.  In other words, we reduced our search area to one fourth instead of halving it!  Since cutting the search space in half is the basis for how the binary search actually works, this might be a problem.  In order to actually halve the search area, we need to take half of the *area*, not the radius, and then figure out what the radius for that given area is.  It seems obvious, but trust me when I say that nobody in Eve Online recognizes this problem.
 
 
-If you would like a little bit more detail on this process, be sure to check out the associated [video](https://www.youtube.com/watch?v=2cXrsrPAbwk "Generatin combinations and permutations").
+If you would like a little bit more detail on this process, be sure to check out the associated [video](https://www.youtube.com/watch?v=pq7yCQdyER8 "Generatin combinations and permutations").
 
 # Why Did This Happen?
 
