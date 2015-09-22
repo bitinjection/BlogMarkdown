@@ -3,6 +3,11 @@ Author: Douglas Thompson
 Date: 09-14-2015
 Slug: multiple-dispatch
 Category: Programming
+Summary: A basic introduction to multipe dispatch
+Tags: Programming, Design Patterns, Architecture
+
+**Be sure to check out the [multiple dispatch video](https://www.youtube.com/watch?v=2cXrsrPAbwk "Video on Multiple Dispatch") if you prefer that format.**
+Also be sure to check out my [programming video playlist](https://www.youtube.com/playlist?list=PLLMKjySaPKS1cZ7qMXhuanXSkVVT5p700 "Programming Video Playlist").
 
 Popular programming languages used have progressed from perdominately procedural/imperative to single dispatch object oriented.  Most mainstream languages also incorporate functional and generic programming to a limited extent as well. We will worry only about the most common subset of features found in C++, C#, and Java for this article.
 
